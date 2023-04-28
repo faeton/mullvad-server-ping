@@ -43,6 +43,33 @@ The script outputs a table with the following columns:
 * `IP`: the IP address of the pinged host.
 * `Delay`: the delay in milliseconds between sending and receiving the ping response. If the ping fails, the delay is shown as "No response".
 
+## Data Format Returned by the Mullvad API Endpoint
+
+The API endpoint https://api.mullvad.net/www/relays/wireguard/ returns data in the following format:
+
+```
+{
+    "hostname":"al-tia-wg-001",
+    "country_code":"al",
+    "country_name":"Albania",
+    "city_code":"tia",
+    "city_name":"Tirana",
+    "active":true,
+    "owned":false,
+    "provider":"iRegister",
+    "ipv4_addr_in":"31.171.153.66",
+    "ipv6_addr_in":"2a04:27c0:0:3::a01f",
+    "network_port_speed":1,
+    "stboot":true,
+    "pubkey":"bPfJDdgBXlY4w3ACs68zOMMhLUbbzktCKnLOFHqbxl4=",
+    "multihop_port":3155,
+    "socks_name":"al-tia-wg-socks5-001.relays.mullvad.net",
+    "socks_port":1080
+}
+```
+
+This data includes information about the hostname, country code and name, city code and name, IP addresses, network port speed, and other relevant details about the server. This information will be used by the `ping_hosts.py` script to ping each server and display the results in a user-friendly table.
+
 ## License
 
 This script is licensed under the MIT License.
