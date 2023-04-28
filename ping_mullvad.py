@@ -10,24 +10,33 @@ import sys
 import os
 
 # Define a function to retrieve the list of hosts from the API endpoint
-def get_host_list(country_code=None, country_name=None, active=None, owned=None, network_port_speed=None):
-    url = "https://api.mullvad.net/www/relays/wireguard/"
+def get_host_list(country_code=None, country_name=None, active=None, owned=None, network_port_speed=None, socks_only=False):
+    url = "https://api.mullvad.net/www/relays/all/"
     response = requests.get(url)
     data = json.loads(response.text)
 
-    # Filter the list based on the provided parameters
+    # Filter the host list by country code or name if specified
     if country_code is not None:
-        data = [d for d in data if d['country_code'].lower() == country_code.lower()]
+        data = [host for host in data if host['country_code'].lower() == country_code.lower()]
     if country_name is not None:
-        data = [d for d in data if d['country_name'].lower() == country_name.lower()]
+        data = [host for host in data if host['country_name'].lower() == country_name.lower()]
+
+    # Filter the host list by active or owned status if specified
     if active is not None:
-        data = [d for d in data if d['active'] == active]
+        data = [host for host in data if host['active'] == active]
     if owned is not None:
-        data = [d for d in data if d['owned'] == owned]
+        data = [host for host in data if host['owned'] == owned]
+
+    # Filter the host list by network port speed if specified
     if network_port_speed is not None:
-        data = [d for d in data if d['network_port_speed'] == network_port_speed]
+        data = [host for host in data if host['network_port_speed'] == network_port_speed]
+
+    # Filter the host list to only those with a non-empty socks_name parameter
+    if socks_only:
+        data = [host for host in data if 'socks_name' in host and host['socks_name']]
 
     return data
+
 
 # Define a function to ping a single host and return the hostname, IP, and delay in milliseconds
 def ping_host(host):
@@ -45,20 +54,21 @@ def ping_host(host):
 
 # Define the main function
 def main(args):
-    # Retrieve the list of hosts from the API endpoint, filtered by country code or name if specified
+    # Retrieve the list of hosts from the API endpoint, filtered by various options if specified
     host_list = get_host_list(country_code=args.country_code, country_name=args.country_name,
-                              active=args.active, owned=args.owned, network_port_speed=args.network_port_speed)
-
-    # Display a message if verbose output is enabled
-    if args.verbose:
-        print(f"Loaded {len(host_list)} hosts. Starting to ping...")
+                              active=args.active, owned=args.owned, network_port_speed=args.network_port_speed,
+                              socks_only=args.socks)
 
    # If the filtered list is empty, display a message and exit
     if not host_list:
         print("No hosts found that match the specified filters. Exiting...")
         sys.exit(0)
 
-     # Use ThreadPoolExecutor for concurrent pinging
+    # Display a message if verbose output is enabled
+    if args.verbose:
+        print(f"Loaded {len(host_list)} hosts. Starting to ping...")
+
+    # Use ThreadPoolExecutor for concurrent pinging
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.threads) as executor:
         try:
             # Ping hosts concurrently and display progress bar if requested
@@ -91,6 +101,7 @@ if __name__ == "__main__":
     parser.add_argument('--country-name', '-cn', dest='country_name', type=str, help="Filter by country name")
     parser.add_argument('--active', '-a', dest='active', const=True, nargs='?', type=bool, help="Filter by active status (default is True)")
     parser.add_argument('--owned', '-o', dest='owned', const=True, nargs='?', type=bool, help="Filter by owned status (default is True)")
+    parser.add_argument('--socks', dest='socks', const=True, nargs='?', type=bool, help="Filter to only hosts with non-empty socks_name parameter")
     parser.add_argument('--network-port-speed', '-sp', dest='network_port_speed', type=int, help="Filter by network port speed")
     parser.add_argument('-t', '--threads', type=int, default=25, help="Number of worker threads. Default is 25.")
     parser.add_argument('-p', '--progress', action='store_true', default=True, help="Display progress bar. Default is True.")
