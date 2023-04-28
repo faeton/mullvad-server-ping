@@ -50,8 +50,8 @@ The script outputs a table with the following columns:
   - [ ] Filter by active status
   - [ ] Filter by owned status
   - [ ] Filter by network port speed
+  - [ ] Filter only hosts with socks_name
 - [ ] Prioritize IPv6 if it is available
-- [ ] Filter only hosts with socks_name
 
 ## Data Format Returned by the Mullvad API Endpoint
 
