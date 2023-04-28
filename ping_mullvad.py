@@ -9,12 +9,14 @@ import math
 import sys
 import os
 
+# Define a function to retrieve the list of hosts from the API endpoint
 def get_host_list():
     url = "https://api.mullvad.net/www/relays/wireguard/"
     response = requests.get(url)
     data = json.loads(response.text)
     return data
 
+# Define a function to ping a single host and return the hostname, IP, and delay in milliseconds
 def ping_host(host):
     ip = host['ipv4_addr_in']
     hostname = host['hostname']
@@ -23,13 +25,19 @@ def ping_host(host):
         if delay is None:
             result = (hostname, ip, math.inf)
         else:
-            result = (hostname, ip, round(delay * 1000, 1))  # convert seconds to milliseconds
+            result = (hostname, ip, round(delay * 1000, 2))  # convert seconds to milliseconds
     except Exception as e:
         result = (hostname, ip, math.inf)
     return result
 
+# Define the main function
 def main(args):
+
+    # Retrieve the list of hosts from the API endpoint
+    # TODO: Add a file cache with 1month expiry
     host_list = get_host_list()
+
+    # Display a message if verbose output is enabled
     if args.verbose:
         print(f"Loaded {len(host_list)} hosts. Starting to ping...")
 
