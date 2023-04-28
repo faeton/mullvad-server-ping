@@ -57,7 +57,6 @@ The script outputs a table with the following columns:
 
 The API endpoint https://api.mullvad.net/www/relays/wireguard/ returns data in the following format:
 
-```
 {
     "hostname":"al-tia-wg-001",
     "**country_code**":"al",
@@ -76,7 +75,6 @@ The API endpoint https://api.mullvad.net/www/relays/wireguard/ returns data in t
     "**socks_name**":"al-tia-wg-socks5-001.relays.mullvad.net",
     "socks_port":1080
 }
-```
 
 This data includes information about the hostname, country code and name, city code and name, IP addresses, network port speed, and other relevant details about the server. This information will be used by the `ping_hosts.py` script to ping each server and display the results in a user-friendly table.
 
