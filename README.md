@@ -60,6 +60,7 @@ The script outputs a table with the following columns:
 
 ## TODO List
 
+- [ ] Cache API request. For a month? In a file?
 - [x] Add filters to the `ping_hosts.py` script:
   - [x] Filter by country code or name
   - [x] Filter by active status
