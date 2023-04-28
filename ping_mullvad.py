@@ -58,13 +58,15 @@ def ping_host(host):
     socks_port = host.get('socks_port', '')
     try:
         delay = ping(ip)
-        if delay is None:
+        if delay is None or delay == 0:
+            # treat 0 delay as failed ping
             result = (hostname, ip, math.inf, socks_name, socks_port)
         else:
             result = (hostname, ip, round(delay * 1000, 2), socks_name, socks_port)  # convert seconds to milliseconds
     except Exception as e:
         result = (hostname, ip, math.inf, socks_name, socks_port)
     return result
+
 
 # Define the main function
 def main(args):
