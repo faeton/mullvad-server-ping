@@ -45,11 +45,11 @@ The script outputs a table with the following columns:
 
 ## TODO List
 
-- [ ] Add filters to the `ping_hosts.py` script:
-  - [ ] Filter by country code or name
-  - [ ] Filter by active status
-  - [ ] Filter by owned status
-  - [ ] Filter by network port speed
+- [x] Add filters to the `ping_hosts.py` script:
+  - [x] Filter by country code or name
+  - [x] Filter by active status
+  - [x] Filter by owned status
+  - [x] Filter by network port speed
   - [ ] Filter only hosts with socks_name
 - [ ] Prioritize IPv6 if it is available
 
