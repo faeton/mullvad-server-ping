@@ -11,10 +11,22 @@ import os
 
 # Define a function to retrieve the list of hosts from the API endpoint
 def get_host_list(country_code=None, country_name=None, active=None, owned=None, network_port_speed=None, socks_only=False):
-    url = "https://api.mullvad.net/www/relays/all/"
-    response = requests.get(url)
-    data = json.loads(response.text)
+    cache_file = 'api_cache.json'
+    
+    # Try to load data from cache
+    if os.path.exists(cache_file):
+        with open(cache_file, 'r') as f:
+            data = json.load(f)
+    else:
+        # Fetch data from API and cache it
+        url = "https://api.mullvad.net/www/relays/all/"
+        response = requests.get(url)
+        data = json.loads(response.text)
 
+        # Save data to cache
+        with open(cache_file, 'w') as f:
+            json.dump(data, f)
+    
     # Filter the host list by country code or name if specified
     if country_code is not None:
         data = [host for host in data if host['country_code'].lower() == country_code.lower()]
@@ -42,14 +54,16 @@ def get_host_list(country_code=None, country_name=None, active=None, owned=None,
 def ping_host(host):
     ip = host['ipv4_addr_in']
     hostname = host['hostname']
+    socks_name = host.get('socks_name', '')
+    socks_port = host.get('socks_port', '')
     try:
         delay = ping(ip)
         if delay is None:
-            result = (hostname, ip, math.inf)
+            result = (hostname, ip, math.inf, socks_name, socks_port)
         else:
-            result = (hostname, ip, round(delay * 1000, 2))  # convert seconds to milliseconds
+            result = (hostname, ip, round(delay * 1000, 2), socks_name, socks_port)  # convert seconds to milliseconds
     except Exception as e:
-        result = (hostname, ip, math.inf)
+        result = (hostname, ip, math.inf, socks_name, socks_port)
     return result
 
 # Define the main function
@@ -91,9 +105,11 @@ def main(args):
         results = results[-args.limit:]
 
     # Print the result in a formatted table
-    print('{:<20} {:<15} {}'.format('Hostname', 'IP', 'Delay'))
     for result in results:
-        print('{:<20} {:<15} {}'.format(result[0], result[1], 'No response' if result[2] == math.inf else f'{result[2]} ms'))
+        if args.socks:
+            print('{:<20} {:<15} {:<10} {:<20}:{:<5}'.format(result[0], result[1], 'No response' if result[2] == math.inf else f'{result[2]} ms', result[3], result[4]))
+        else:
+            print('{:<20} {:<15} {:<10}'.format(result[0], result[1], 'No response' if result[2] == math.inf else f'{result[2]} ms'))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Ping a list of hosts and display the results.")
