@@ -1,5 +1,3 @@
-Sure, here's the full README with the latest changes:
-
 # Ping Hosts
 
 Ping Hosts is a Python command-line tool that pings a list of hosts and displays the results. It retrieves a list of hosts from an API endpoint, pings each host concurrently, and then sorts and displays the results.
