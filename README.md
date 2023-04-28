@@ -50,31 +50,19 @@ The script outputs a table with the following columns:
   - [x] Filter by active status
   - [x] Filter by owned status
   - [x] Filter by network port speed
-  - [ ] Filter only hosts with socks_name
+  - [x] Filter only hosts with socks_name
+  - [ ] By type (openvpn, wireguard, bridge)
+- [ ] Choose server list from API
+  - [ ] Wireguard
+  - [ ] OpenVPN
+  - [ ] Bridge
 - [ ] Prioritize IPv6 if it is available
 
 ## Data Format Returned by the Mullvad API Endpoint
 
 The API endpoint https://api.mullvad.net/www/relays/wireguard/ returns data in the following format:
 
-{
-    "hostname":"al-tia-wg-001",
-    "**country_code**":"al",
-    "**country_name**":"Albania",
-    "city_code":"tia",
-    "city_name":"Tirana",
-    "**active**":true,
-    "**owned**":false,
-    "provider":"iRegister",
-    "ipv4_addr_in":"31.171.153.66",
-    "ipv6_addr_in":"2a04:27c0:0:3::a01f",
-    "**network_port_speed**":1,
-    "stboot":true,
-    "pubkey":"bPfJDdgBXlY4w3ACs68zOMMhLUbbzktCKnLOFHqbxl4=",
-    "multihop_port":3155,
-    "**socks_name**":"al-tia-wg-socks5-001.relays.mullvad.net",
-    "socks_port":1080
-}
+{"hostname":"al-tia-ovpn-001","country_code":"al","country_name":"Albania","city_code":"tia","city_name":"Tirana","active":true,"owned":false,"provider":"iRegister","ipv4_addr_in":"31.171.154.50","ipv6_addr_in":"2a04:27c0:0:4::a01f","network_port_speed":1,"stboot":true,"type":"openvpn","status_messages":[]}
 
 This data includes information about the hostname, country code and name, city code and name, IP addresses, network port speed, and other relevant details about the server. This information will be used by the `ping_hosts.py` script to ping each server and display the results in a user-friendly table.
 
