@@ -21,10 +21,10 @@ python ping_hosts.py [-h] [--country-code COUNTRY_CODE]
 * `-h, --help`: show the help message and exit.
 * `--country-code COUNTRY_CODE`: filter by country code
 * `--country-name COUNTRY_NAME`: filter by country name
-* `-a [ACTIVE], --active [ACTIVE]`: filter by active status (default is True)
-* `-o [OWNED], --owned [OWNED]`: filter by owned status (default is True)
-* `-s [SOCKS], --socks [SOCKS]`: filter to only hosts with non-empty `socks_name` parameter
-* `--network-port-speed NETWORK_PORT_SPEED`: filter by network port speed
+* `-a, --active`: filter by active status
+* `-o, --owned`: filter by owned status
+* `--socks [SOCKS]`: filter to only hosts with non-empty `socks_name` parameter
+* `--network-port-speed NETWORK_PORT_SPEED`: filter by network port speed (in GBits - 1 or 10)
 * `-t THREADS, --threads THREADS`: number of worker threads. Default is 25.
 * `-p, --progress`: display progress bar. Default is True.
 * `-v, --verbose`: display verbose output. Default is False.
@@ -41,7 +41,7 @@ python ping_hosts.py
 Ping hosts in Canada with a network port speed of 10 Gbps, display verbose output, and limit results to 5:
 
 ```
-python ping_hosts.py --country-name Canada --network-port-speed 10000 -v -l 5
+python ping_hosts.py --country-name Canada --network-port-speed 10 -v -l 5
 ```
 
 Ping hosts that support SOCKS and are located in Europe, display progress bar, and limit results to 20:
