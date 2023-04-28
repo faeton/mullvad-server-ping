@@ -7,7 +7,7 @@ Ping Hosts is a Python command-line tool that pings a list of hosts and displays
 ## Requirements
 
 * Python 3.x
-* `ping3`, `requests`, and `tqdm` Python libraries (can be installed using pip)
+* `ping3`, `requests`, `argparse`, and `tqdm` Python libraries (can be installed using pip)
 
 ## Usage
 
