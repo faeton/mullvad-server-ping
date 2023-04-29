@@ -1,6 +1,6 @@
-# Ping Hosts
+# Ping Mullvad Servers
 
-Ping Hosts is a Python command-line tool that pings a list of hosts and displays the results. It retrieves a list of hosts from an API endpoint, pings each host concurrently, and then sorts and displays the results.
+Mullvad Server Ping is a Python command-line tool that pings a list of hosts and displays the results. It retrieves a list of hosts from an API endpoint, pings each host concurrently, and then sorts and displays the results.
 
 ## Requirements
 
@@ -10,7 +10,7 @@ Ping Hosts is a Python command-line tool that pings a list of hosts and displays
 ## Usage
 
 ```
-python ping_hosts.py [-h] [--country-code COUNTRY_CODE]
+python ping_mullvad.py [-h] [--country-code COUNTRY_CODE]
                     [--country-name COUNTRY_NAME] [-a [ACTIVE]]
                     [-o [OWNED]] [-s [SOCKS]] [--network-port-speed NETWORK_PORT_SPEED]
                     [-t THREADS] [-p] [-v] [-l LIMIT]
@@ -35,19 +35,19 @@ python ping_hosts.py [-h] [--country-code COUNTRY_CODE]
 Ping hosts with default options:
 
 ```
-python ping_hosts.py
+python ping_mullvad.py
 ```
 
 Ping hosts in Canada with a network port speed of 10 Gbps, display verbose output, and limit results to 5:
 
 ```
-python ping_hosts.py --country-name Canada --network-port-speed 10 -v -l 5
+python ping_mullvad.py --country-name Canada --network-port-speed 10 -v -l 5
 ```
 
 Ping hosts that support SOCKS and are located in Europe, display progress bar, and limit results to 20:
 
 ```
-python ping_hosts.py --socks --country-name Europe -p -l 20
+python ping_mullvad.py --socks --country-name Europe -p -l 20
 ```
 
 ## Output
