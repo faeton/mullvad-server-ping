@@ -7,6 +7,17 @@ Mullvad Server Ping is a Python command-line tool that pings a list of hosts and
 * Python 3.x
 * `ping3`, `requests`, `argparse`, and `tqdm` Python libraries (can be installed using pip)
 
+## Installation
+
+1. Make sure you have Python 3 installed. You can download it from the [official Python website](https://www.python.org/). 
+
+2. Install the required Python libraries. You can do this by running the following command in your terminal:
+```
+pip install -r requirements.txt
+```
+
+Note: You might need to use `pip3` instead of `pip` if you have both Python 2 and Python 3 installed on your computer.
+
 ## Usage
 
 ```
