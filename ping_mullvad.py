@@ -78,7 +78,7 @@ def main(args):
     # Retrieve the list of hosts from the API endpoint, filtered by various options if specified
     host_list = get_host_list(country_code=args.country_code, country_name=args.country_name,
                               active=args.active, owned=args.owned, network_port_speed=args.network_port_speed,
-                              socks_only=args.socks, type=args.type)
+                              socks_only=args.socks, server_type=args.server_type)
 
    # If the filtered list is empty, display a message and exit
     if not host_list:
