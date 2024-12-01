@@ -10,7 +10,7 @@ import sys
 import os
 
 # Define a function to retrieve the list of hosts from the API endpoint
-def get_host_list(country_code=None, country_name=None, active=None, owned=None, network_port_speed=None, socks_only=False):
+def get_host_list(country_code=None, country_name=None, active=None, owned=None, network_port_speed=None, socks_only=False, server_type=None):
     cache_file = 'api_cache.json'
     
     # Try to load data from cache
@@ -32,7 +32,11 @@ def get_host_list(country_code=None, country_name=None, active=None, owned=None,
         data = [host for host in data if host['country_code'].lower() == country_code.lower()]
     if country_name is not None:
         data = [host for host in data if host['country_name'].lower() == country_name.lower()]
-
+        
+    # Filter the host list by type if specified
+    if server_type is not None:
+        data = [host for host in data if host['type'].lower() == server_type.lower()]
+        
     # Filter the host list by active or owned status if specified
     if active is not None:
         data = [host for host in data if host['active'] == active]
@@ -56,6 +60,7 @@ def ping_host(host):
     hostname = host['hostname']
     socks_name = host.get('socks_name', '')
     socks_port = host.get('socks_port', '')
+    server_type = host.get('type', '')
     try:
         delay = ping(ip)
         if delay is None or delay == 0:
@@ -73,7 +78,7 @@ def main(args):
     # Retrieve the list of hosts from the API endpoint, filtered by various options if specified
     host_list = get_host_list(country_code=args.country_code, country_name=args.country_name,
                               active=args.active, owned=args.owned, network_port_speed=args.network_port_speed,
-                              socks_only=args.socks)
+                              socks_only=args.socks, server_type=args.server_type)
 
    # If the filtered list is empty, display a message and exit
     if not host_list:
@@ -125,6 +130,7 @@ if __name__ == "__main__":
     parser.add_argument('-p', '--progress', action='store_true', default=True, help="Display progress bar. Default is True.")
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help="Display verbose output. Default is False.")
     parser.add_argument('-l', '--limit', type=int, default=10, help="Limit the number of results. Default is 10. Set to -1 to display all results.")
+    parser.add_argument('--type', dest='server_type', type=str, help="Filter by server type (wireguard, openvpn etc.)")
     args = parser.parse_args()
 
     main(args)
