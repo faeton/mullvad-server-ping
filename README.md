@@ -2,6 +2,8 @@
 
 Minimal Python CLI for ranking Mullvad VPN relays by ICMP latency. It fetches the live relay list from Mullvad, filters the servers you care about, pings them concurrently, and prints the fastest results first.
 
+![Mullvad Server Ping terminal screenshot](docs/screenshot.svg)
+
 ## Why This Tool
 
 * Uses Mullvad's live relay API.
@@ -17,6 +19,13 @@ Minimal Python CLI for ranking Mullvad VPN relays by ICMP latency. It fetches th
 * System `ping` command
 
 ## Installation
+
+With Homebrew:
+
+```sh
+brew tap faeton/tap
+brew install mullvad-server-ping
+```
 
 Run directly from the repository:
 
