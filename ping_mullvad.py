@@ -1,136 +1,154 @@
 #!/usr/bin/env python3
-import json
-import requests
-from ping3 import ping
-import concurrent.futures
-from tqdm import tqdm
 import argparse
+import asyncio
+import json
 import math
-import sys
 import os
+import re
+import subprocess
+import sys
+import time
+import urllib.request
+from argparse import BooleanOptionalAction
 
-# Define a function to retrieve the list of hosts from the API endpoint
-def get_host_list(country_code=None, country_name=None, active=None, owned=None, network_port_speed=None, socks_only=False, server_type=None):
-    cache_file = 'api_cache.json'
-    
-    # Try to load data from cache
-    if os.path.exists(cache_file):
-        with open(cache_file, 'r') as f:
+API_URL = "https://api.mullvad.net/www/relays/all/"
+CACHE_FILE = "api_cache.json"
+CACHE_TTL = 24 * 3600
+
+
+def get_host_list(country_code=None, country_name=None, active=None, owned=None,
+                  network_port_speed=None, socks_only=False, server_type=None):
+    fresh = os.path.exists(CACHE_FILE) and (time.time() - os.path.getmtime(CACHE_FILE) < CACHE_TTL)
+    if fresh:
+        with open(CACHE_FILE) as f:
             data = json.load(f)
     else:
-        # Fetch data from API and cache it
-        url = "https://api.mullvad.net/www/relays/all/"
-        response = requests.get(url)
-        data = json.loads(response.text)
-
-        # Save data to cache
-        with open(cache_file, 'w') as f:
+        with urllib.request.urlopen(API_URL, timeout=15) as r:
+            data = json.load(r)
+        with open(CACHE_FILE, "w") as f:
             json.dump(data, f)
-    
-    # Filter the host list by country code or name if specified
-    if country_code is not None:
-        data = [host for host in data if host['country_code'].lower() == country_code.lower()]
-    if country_name is not None:
-        data = [host for host in data if host['country_name'].lower() == country_name.lower()]
-        
-    # Filter the host list by type if specified
-    if server_type is not None:
-        data = [host for host in data if host['type'].lower() == server_type.lower()]
-        
-    # Filter the host list by active or owned status if specified
-    if active is not None:
-        data = [host for host in data if host['active'] == active]
-    if owned is not None:
-        data = [host for host in data if host['owned'] == owned]
 
-    # Filter the host list by network port speed if specified
-    if network_port_speed is not None:
-        data = [host for host in data if host['network_port_speed'] == network_port_speed]
+    def keep(h):
+        if country_code and h["country_code"].lower() != country_code.lower(): return False
+        if country_name and h["country_name"].lower() != country_name.lower(): return False
+        if server_type and h["type"].lower() != server_type.lower(): return False
+        if active is not None and h["active"] != active: return False
+        if owned is not None and h["owned"] != owned: return False
+        if network_port_speed is not None and h["network_port_speed"] != network_port_speed: return False
+        if socks_only and not h.get("socks_name"): return False
+        return True
 
-    # Filter the host list to only those with a non-empty socks_name parameter
-    if socks_only:
-        data = [host for host in data if 'socks_name' in host and host['socks_name']]
-
-    return data
+    return [h for h in data if keep(h)]
 
 
-# Define a function to ping a single host and return the hostname, IP, and delay in milliseconds
-def ping_host(host):
-    ip = host['ipv4_addr_in']
-    hostname = host['hostname']
-    socks_name = host.get('socks_name', '')
-    socks_port = host.get('socks_port', '')
-    server_type = host.get('type', '')
+_PING_RE = re.compile(r"time[=<]([\d.]+)\s*ms")
+
+
+async def icmp_ping(host, timeout=2):
+    ip = host["ipv4_addr_in"]
+    if sys.platform == "darwin" or sys.platform.startswith("linux"):
+        cmd = ["ping", "-c", "1", "-W", str(int(timeout * 1000)), ip] if sys.platform.startswith("linux") \
+              else ["ping", "-c", "1", "-t", str(int(timeout)), ip]
+    else:
+        cmd = ["ping", "-n", "1", "-w", str(int(timeout * 1000)), ip]
     try:
-        delay = ping(ip)
-        if delay is None or delay == 0:
-            # treat 0 delay as failed ping
-            result = (hostname, ip, math.inf, socks_name, socks_port)
-        else:
-            result = (hostname, ip, round(delay * 1000, 2), socks_name, socks_port)  # convert seconds to milliseconds
-    except Exception as e:
-        result = (hostname, ip, math.inf, socks_name, socks_port)
-    return result
+        proc = await asyncio.create_subprocess_exec(
+            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL
+        )
+        out, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout + 1)
+        m = _PING_RE.search(out.decode("utf-8", "ignore"))
+        delay = float(m.group(1)) if m and proc.returncode == 0 else math.inf
+    except (OSError, asyncio.TimeoutError):
+        delay = math.inf
+    return (host["hostname"], ip, delay, host.get("socks_name", ""), host.get("socks_port", ""))
 
 
-# Define the main function
+async def ping_all(hosts, concurrency, show_progress):
+    sem = asyncio.Semaphore(concurrency)
+    total = len(hosts)
+    done = 0
+
+    async def run(h):
+        nonlocal done
+        async with sem:
+            res = await icmp_ping(h)
+        done += 1
+        if show_progress:
+            print(f"\r{done}/{total}", end="", file=sys.stderr, flush=True)
+        return res
+
+    results = await asyncio.gather(*(run(h) for h in hosts))
+    if show_progress:
+        print("", file=sys.stderr)
+    return results
+
+
+def detect_vpn():
+    try:
+        if sys.platform == "darwin":
+            out = subprocess.run(["route", "-n", "get", "default"], capture_output=True, text=True, timeout=2).stdout
+            iface = re.search(r"interface:\s*(\S+)", out)
+            gw = re.search(r"gateway:\s*(\S+)", out)
+            if iface and re.match(r"(utun|tun|tap|ppp|wg)", iface.group(1)):
+                return iface.group(1)
+            if gw and re.match(r"(10\.|100\.6[4-9]\.|100\.[7-9]\d\.|100\.1[01]\d\.|100\.12[0-7]\.)", gw.group(1)):
+                return gw.group(1)
+        elif sys.platform.startswith("linux"):
+            out = subprocess.run(["ip", "route", "show", "default"], capture_output=True, text=True, timeout=2).stdout
+            m = re.search(r"dev\s+(\S+)", out)
+            if m and re.match(r"(tun|tap|wg|ppp)", m.group(1)):
+                return m.group(1)
+    except Exception:
+        pass
+    return None
+
+
 def main(args):
-    # Retrieve the list of hosts from the API endpoint, filtered by various options if specified
-    host_list = get_host_list(country_code=args.country_code, country_name=args.country_name,
-                              active=args.active, owned=args.owned, network_port_speed=args.network_port_speed,
-                              socks_only=args.socks, server_type=args.server_type)
-
-   # If the filtered list is empty, display a message and exit
-    if not host_list:
-        print("No hosts found that match the specified filters. Exiting...")
+    hosts = get_host_list(country_code=args.country_code, country_name=args.country_name,
+                          active=args.active, owned=args.owned,
+                          network_port_speed=args.network_port_speed,
+                          socks_only=args.socks, server_type=args.server_type)
+    if not hosts:
+        print("No hosts match filters.")
         sys.exit(0)
 
-    # Display a message if verbose output is enabled
+    vpn = detect_vpn()
+    if vpn:
+        print(f"WARNING: default route goes via {vpn} (looks like a VPN tunnel). "
+              f"Latencies will be tunnel-routed and most relays will show 'No response'. "
+              f"Disconnect your VPN for accurate results.", file=sys.stderr)
     if args.verbose:
-        print(f"Loaded {len(host_list)} hosts. Starting to ping...")
+        print(f"Pinging {len(hosts)} hosts...", file=sys.stderr)
 
-    # Use ThreadPoolExecutor for concurrent pinging
-    with concurrent.futures.ThreadPoolExecutor(max_workers=args.threads) as executor:
-        try:
-            # Ping hosts concurrently and display progress bar if requested
-            if args.progress:
-                results = list(tqdm(executor.map(ping_host, host_list), total=len(host_list)))
-            else:
-                results = list(executor.map(ping_host, host_list))
-        except KeyboardInterrupt:
-            # Handle user interrupt gracefully
-            print("\nInterrupted by user. Canceling pings...")
-            executor.shutdown(wait=False)
-            print("Ping cancellation completed. Exiting...")
-            sys.exit(0)
+    try:
+        results = asyncio.run(ping_all(hosts, args.threads, args.progress))
+    except KeyboardInterrupt:
+        print("\nInterrupted.", file=sys.stderr)
+        sys.exit(130)
 
-    # Sort the result based on delay
-    results.sort(key=lambda x: x[2], reverse=True)  # reverse sort
-
-    # Limit the results if requested
+    results.sort(key=lambda x: x[2])
     if args.limit is not None and args.limit > -1:
-        results = results[-args.limit:]
+        results = results[:args.limit]
 
-    # Print the result in a formatted table
-    for result in results:
+    for hostname, ip, delay, socks_name, socks_port in results:
+        d = "No response" if delay == math.inf else f"{delay:.2f} ms"
         if args.socks:
-            print('{:<20} {:<15} {:<10} {:<20}:{:<5}'.format(result[0], result[1], 'No response' if result[2] == math.inf else f'{result[2]} ms', result[3], result[4]))
+            print(f"{hostname:<20} {ip:<15} {d:<12} {socks_name}:{socks_port}")
         else:
-            print('{:<20} {:<15} {:<10}'.format(result[0], result[1], 'No response' if result[2] == math.inf else f'{result[2]} ms'))
+            print(f"{hostname:<20} {ip:<15} {d}")
+
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Ping a list of hosts and display the results.")
-    parser.add_argument('--country-code', '-cc', dest='country_code', type=str, help="Filter by country code")
-    parser.add_argument('--country-name', '-cn', dest='country_name', type=str, help="Filter by country name")
-    parser.add_argument('--active', '-a', dest='active', const=True, nargs='?', type=bool, help="Filter by active status (default is True)")
-    parser.add_argument('--owned', '-o', dest='owned', const=True, nargs='?', type=bool, help="Filter by owned status (default is True)")
-    parser.add_argument('--socks', dest='socks', const=True, nargs='?', type=bool, help="Filter to only hosts with non-empty socks_name parameter")
-    parser.add_argument('--network-port-speed', '-sp', dest='network_port_speed', type=int, help="Filter by network port speed")
-    parser.add_argument('-t', '--threads', type=int, default=25, help="Number of worker threads. Default is 25.")
-    parser.add_argument('-p', '--progress', action='store_true', default=True, help="Display progress bar. Default is True.")
-    parser.add_argument('-v', '--verbose', action='store_true', default=False, help="Display verbose output. Default is False.")
-    parser.add_argument('-l', '--limit', type=int, default=10, help="Limit the number of results. Default is 10. Set to -1 to display all results.")
-    parser.add_argument('--type', dest='server_type', type=str, help="Filter by server type (wireguard, openvpn etc.)")
-    args = parser.parse_args()
-
-    main(args)
+    p = argparse.ArgumentParser(description="Ping Mullvad relays via TCP and rank by latency.")
+    p.add_argument("-cc", "--country-code", dest="country_code")
+    p.add_argument("-cn", "--country-name", dest="country_name")
+    p.add_argument("-a", "--active", action=BooleanOptionalAction, default=None)
+    p.add_argument("-o", "--owned", action=BooleanOptionalAction, default=None)
+    p.add_argument("--socks", action="store_true")
+    p.add_argument("-sp", "--network-port-speed", dest="network_port_speed", type=int)
+    p.add_argument("-t", "--threads", type=int, default=100, help="Concurrent connections (default 100).")
+    p.add_argument("-p", "--progress", action=BooleanOptionalAction, default=True)
+    p.add_argument("-v", "--verbose", action="store_true")
+    p.add_argument("-l", "--limit", type=int, default=10, help="Top N fastest. -1 for all.")
+    p.add_argument("--type", dest="server_type", help="wireguard, openvpn, etc.")
+    main(p.parse_args())

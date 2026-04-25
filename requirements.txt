@@ -1,3 +1,1 @@
-requests
-ping3
-tqdm
+# No third-party dependencies — Python 3.8+ stdlib only.
