@@ -138,8 +138,8 @@ def main(args):
             print(f"{hostname:<20} {ip:<15} {d}")
 
 
-if __name__ == "__main__":
-    p = argparse.ArgumentParser(description="Ping Mullvad relays via TCP and rank by latency.")
+def cli():
+    p = argparse.ArgumentParser(description="Ping Mullvad relays via ICMP and rank by latency.")
     p.add_argument("-cc", "--country-code", dest="country_code")
     p.add_argument("-cn", "--country-name", dest="country_name")
     p.add_argument("-a", "--active", action=BooleanOptionalAction, default=None)
@@ -152,3 +152,7 @@ if __name__ == "__main__":
     p.add_argument("-l", "--limit", type=int, default=10, help="Top N fastest. -1 for all.")
     p.add_argument("--type", dest="server_type", help="wireguard, openvpn, etc.")
     main(p.parse_args())
+
+
+if __name__ == "__main__":
+    cli()

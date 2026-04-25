@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mullvad-server-ping"
+version = "0.1.0"
+description = "Minimal stdlib-only CLI for ranking Mullvad relays by latency."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [{ name = "faeton" }]
+keywords = ["mullvad", "vpn", "ping", "latency", "wireguard", "openvpn", "cli"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Internet",
+    "Topic :: System :: Networking",
+    "Topic :: Utilities",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/faeton/mullvad-server-ping"
+Repository = "https://github.com/faeton/mullvad-server-ping"
+Issues = "https://github.com/faeton/mullvad-server-ping/issues"
+
+[project.scripts]
+mullvad-server-ping = "ping_mullvad:cli"
+
+[tool.setuptools]
+py-modules = ["ping_mullvad"]

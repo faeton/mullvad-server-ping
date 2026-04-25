@@ -1,99 +1,111 @@
-# Ping Mullvad Servers
+# Mullvad Server Ping
 
-Mullvad Server Ping is a Python command-line tool that pings a list of hosts and displays the results. It retrieves a list of hosts from an API endpoint, pings each host concurrently, and then sorts and displays the results.
+Minimal Python CLI for ranking Mullvad VPN relays by ICMP latency. It fetches the live relay list from Mullvad, filters the servers you care about, pings them concurrently, and prints the fastest results first.
+
+## Why This Tool
+
+* Uses Mullvad's live relay API.
+* No third-party Python dependencies.
+* Concurrent pinging for quick results.
+* Local 24-hour API cache to avoid repeated relay-list downloads.
+* Filters by country, active status, ownership, relay type, SOCKS support, and port speed.
+* Warns when your default route appears to be a VPN tunnel, because that can make latency results misleading.
 
 ## Requirements
 
-* Python 3.x
-* `ping3`, `requests`, `argparse`, and `tqdm` Python libraries (can be installed using pip)
+* Python 3.8+
+* System `ping` command
 
 ## Installation
 
-1. Make sure you have Python 3 installed. You can download it from the [official Python website](https://www.python.org/). 
+Run directly from the repository:
 
-2. Install the required Python libraries. You can do this by running the following command in your terminal:
-```
-pip install -r requirements.txt
-```
-
-Note: You might need to use `pip3` instead of `pip` if you have both Python 2 and Python 3 installed on your computer.
-
-## Usage
-
-```
-python ping_mullvad.py [-h] [--country-code COUNTRY_CODE]
-                    [--country-name COUNTRY_NAME] [-a [ACTIVE]]
-                    [-o [OWNED]] [-s [SOCKS]] [--network-port-speed NETWORK_PORT_SPEED]
-                    [-t THREADS] [-p] [-v] [-l LIMIT]
-```
-
-## Arguments
-
-* `-h, --help`: show the help message and exit.
-* `--country-code COUNTRY_CODE`: filter by country code
-* `--country-name COUNTRY_NAME`: filter by country name
-* `-a, --active`: filter by active status
-* `-o, --owned`: filter by owned status
-* `--socks [SOCKS]`: filter to only hosts with non-empty `socks_name` parameter
-* `--network-port-speed NETWORK_PORT_SPEED`: filter by network port speed (in GBits - 1 or 10)
-* `-t THREADS, --threads THREADS`: number of worker threads. Default is 25.
-* `-p, --progress`: display progress bar. Default is True.
-* `-v, --verbose`: display verbose output. Default is False.
-* `-l LIMIT, --limit LIMIT`: limit the number of results. Default is 10. Set to -1 to display all results.
-
-## Examples
-
-Ping hosts with default options:
-
-```
+```sh
 python ping_mullvad.py
 ```
 
-Ping hosts in Canada with a network port speed of 10 Gbps, display verbose output, and limit results to 5:
+Or install it as a local CLI:
 
-```
-python ping_mullvad.py --country-name Canada --network-port-speed 10 -v -l 5
-```
-
-Ping hosts that support SOCKS and are located in Europe, display progress bar, and limit results to 20:
-
-```
-python ping_mullvad.py --socks --country-name Europe -p -l 20
+```sh
+python -m pip install .
+mullvad-server-ping
 ```
 
-## Output
+No Python packages are installed beyond this project itself.
 
-The script outputs a table with the following columns:
+## Usage
 
-* `Hostname`: the hostname of the pinged host.
-* `IP`: the IP address of the pinged host.
-* `Delay`: the delay in milliseconds between sending and receiving the ping response. If the ping fails, the delay is shown as "No response".
+```sh
+mullvad-server-ping [-h] [-cc COUNTRY_CODE] [-cn COUNTRY_NAME]
+                    [-a | --active | --no-active]
+                    [-o | --owned | --no-owned]
+                    [--socks] [-sp NETWORK_PORT_SPEED]
+                    [-t THREADS] [-p | --progress | --no-progress]
+                    [-v] [-l LIMIT] [--type SERVER_TYPE]
+```
 
-## TODO List
+## Options
 
-- [x] Cache API request.
-  - [ ] Make it slightly more complex? Expiry?
-- [x] Add filters to the `ping_hosts.py` script:
-  - [x] Filter by country code or name
-  - [x] Filter by active status
-  - [x] Filter by owned status
-  - [x] Filter by network port speed
-  - [x] Filter only hosts with `socks_name`
-  - [ ] By type (openvpn, wireguard, bridge)
-- [ ] Choose server list from API
-  - [ ] Wireguard
-  - [ ] OpenVPN
-  - [ ] Bridge
-- [ ] Prioritize IPv6 if it is available
+* `-cc, --country-code`: Filter by country code, such as `us`, `se`, or `de`.
+* `-cn, --country-name`: Filter by exact country name, such as `Sweden`.
+* `-a, --active` / `--no-active`: Include only active or inactive relays.
+* `-o, --owned` / `--no-owned`: Include only Mullvad-owned or rented relays.
+* `--socks`: Include only relays with SOCKS metadata, and print SOCKS endpoint details.
+* `-sp, --network-port-speed`: Filter by network port speed in Gbit/s, such as `1` or `10`.
+* `--type`: Filter by relay type, such as `wireguard`, `openvpn`, or `bridge`.
+* `-t, --threads`: Concurrent ping count. Default: `100`.
+* `-p, --progress` / `--no-progress`: Show or hide progress. Default: enabled.
+* `-v, --verbose`: Print extra progress details to stderr.
+* `-l, --limit`: Number of fastest results to print. Default: `10`; use `-1` for all.
 
-## Data Format Returned by the Mullvad API Endpoint
+## Examples
 
-The API endpoint https://api.mullvad.net/www/relays/all/ returns data in the following format:
+Rank the fastest reachable relays:
 
-{"hostname":"al-tia-ovpn-001","country_code":"al","country_name":"Albania","city_code":"tia","city_name":"Tirana","active":true,"owned":false,"provider":"iRegister","ipv4_addr_in":"31.171.154.50","ipv6_addr_in":"2a04:27c0:0:4::a01f","network_port_speed":1,"stboot":true,"type":"openvpn","status_messages":[]}
+```sh
+mullvad-server-ping
+```
 
-This data includes information about the hostname, country code and name, city code and name, IP addresses, network port speed, and other relevant details about the server. This information will be used by the `ping_hosts.py` script to ping each server and display the results in a user-friendly table.
+Show the five fastest active WireGuard relays in Sweden:
+
+```sh
+mullvad-server-ping --country-code se --type wireguard --active -l 5
+```
+
+Find fast 10 Gbit/s relays in Canada without the progress counter:
+
+```sh
+mullvad-server-ping --country-name Canada --network-port-speed 10 --no-progress -l 5
+```
+
+Show relays with SOCKS metadata:
+
+```sh
+mullvad-server-ping --socks --active -l 10
+```
+
+Example output:
+
+```text
+se-sto-wg-301        185.213.154.66  18.42 ms
+se-sto-wg-302        185.213.154.67  18.77 ms
+se-got-wg-001        193.138.218.130 22.14 ms
+de-fra-wg-401        146.70.117.2    29.80 ms
+nl-ams-wg-201        169.150.196.2   33.01 ms
+```
+
+## Cache
+
+The relay list is cached in `api_cache.json` for 24 hours. The file is generated locally and ignored by Git.
+
+## Data Source
+
+Relay metadata comes from Mullvad's public endpoint:
+
+```text
+https://api.mullvad.net/www/relays/all/
+```
 
 ## License
 
-This script is licensed under the MIT License.
+MIT
