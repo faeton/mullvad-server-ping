@@ -44,26 +44,32 @@ def get_host_list(country_code=None, country_name=None, active=None, owned=None,
 _PING_RE = re.compile(r"time[=<]([\d.]+)\s*ms")
 
 
-async def icmp_ping(host, timeout=2):
+async def icmp_ping(host, timeout=2, count=1):
     ip = host["ipv4_addr_in"]
-    if sys.platform == "darwin" or sys.platform.startswith("linux"):
-        cmd = ["ping", "-c", "1", "-W", str(int(timeout * 1000)), ip] if sys.platform.startswith("linux") \
-              else ["ping", "-c", "1", "-t", str(int(timeout)), ip]
+    if sys.platform == "darwin":
+        cmd = ["ping", "-c", str(count), "-W", str(int(timeout * 1000)), ip]
+    elif sys.platform.startswith("linux"):
+        cmd = ["ping", "-c", str(count), "-W", str(max(1, int(timeout))), ip]
     else:
-        cmd = ["ping", "-n", "1", "-w", str(int(timeout * 1000)), ip]
+        cmd = ["ping", "-n", str(count), "-w", str(int(timeout * count * 1000)), ip]
     try:
         proc = await asyncio.create_subprocess_exec(
             *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL
         )
-        out, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout + 1)
-        m = _PING_RE.search(out.decode("utf-8", "ignore"))
-        delay = float(m.group(1)) if m and proc.returncode == 0 else math.inf
+        try:
+            out, _ = await asyncio.wait_for(proc.communicate(), timeout=(timeout + 1) * count)
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.communicate()
+            raise
+        times = [float(t) for t in _PING_RE.findall(out.decode("utf-8", "ignore"))]
+        delay = sum(times) / len(times) if times else math.inf
     except (OSError, asyncio.TimeoutError):
         delay = math.inf
     return (host["hostname"], ip, delay, host.get("socks_name", ""), host.get("socks_port", ""))
 
 
-async def ping_all(hosts, concurrency, show_progress):
+async def ping_all(hosts, concurrency, show_progress, count):
     sem = asyncio.Semaphore(concurrency)
     total = len(hosts)
     done = 0
@@ -71,7 +77,7 @@ async def ping_all(hosts, concurrency, show_progress):
     async def run(h):
         nonlocal done
         async with sem:
-            res = await icmp_ping(h)
+            res = await icmp_ping(h, count=count)
         done += 1
         if show_progress:
             print(f"\r{done}/{total}", end="", file=sys.stderr, flush=True)
@@ -121,12 +127,15 @@ def main(args):
         print(f"Pinging {len(hosts)} hosts...", file=sys.stderr)
 
     try:
-        results = asyncio.run(ping_all(hosts, args.threads, args.progress))
+        results = asyncio.run(ping_all(hosts, args.threads, args.progress, args.count))
     except KeyboardInterrupt:
         print("\nInterrupted.", file=sys.stderr)
         sys.exit(130)
 
     results.sort(key=lambda x: x[2])
+    if all(delay == math.inf for _, _, delay, _, _ in results):
+        print("WARNING: no selected hosts replied to ICMP. Try lowering --threads, increasing --count, "
+              "or checking whether your network blocks ping.", file=sys.stderr)
     if args.limit is not None and args.limit > -1:
         results = results[:args.limit]
 
@@ -147,11 +156,17 @@ def cli():
     p.add_argument("--socks", action="store_true")
     p.add_argument("-sp", "--network-port-speed", dest="network_port_speed", type=int)
     p.add_argument("-t", "--threads", type=int, default=100, help="Concurrent connections (default 100).")
+    p.add_argument("-n", "--count", type=int, default=1, help="ICMP packets per host (default 1).")
     p.add_argument("-p", "--progress", action=BooleanOptionalAction, default=True)
     p.add_argument("-v", "--verbose", action="store_true")
     p.add_argument("-l", "--limit", type=int, default=10, help="Top N fastest. -1 for all.")
     p.add_argument("--type", dest="server_type", help="wireguard, openvpn, etc.")
-    main(p.parse_args())
+    args = p.parse_args()
+    if args.threads < 1:
+        p.error("--threads must be at least 1")
+    if args.count < 1:
+        p.error("--count must be at least 1")
+    main(args)
 
 
 if __name__ == "__main__":

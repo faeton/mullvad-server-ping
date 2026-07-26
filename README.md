@@ -49,7 +49,7 @@ mullvad-server-ping [-h] [-cc COUNTRY_CODE] [-cn COUNTRY_NAME]
                     [-a | --active | --no-active]
                     [-o | --owned | --no-owned]
                     [--socks] [-sp NETWORK_PORT_SPEED]
-                    [-t THREADS] [-p | --progress | --no-progress]
+                    [-t THREADS] [-n COUNT] [-p | --progress | --no-progress]
                     [-v] [-l LIMIT] [--type SERVER_TYPE]
 ```
 
@@ -63,6 +63,7 @@ mullvad-server-ping [-h] [-cc COUNTRY_CODE] [-cn COUNTRY_NAME]
 * `-sp, --network-port-speed`: Filter by network port speed in Gbit/s, such as `1` or `10`.
 * `--type`: Filter by relay type, such as `wireguard`, `openvpn`, or `bridge`.
 * `-t, --threads`: Concurrent ping count. Default: `100`.
+* `-n, --count`: ICMP packets per host. Default: `1`.
 * `-p, --progress` / `--no-progress`: Show or hide progress. Default: enabled.
 * `-v, --verbose`: Print extra progress details to stderr.
 * `-l, --limit`: Number of fastest results to print. Default: `10`; use `-1` for all.
